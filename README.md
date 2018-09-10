@@ -7,7 +7,7 @@ Ultra easy tool to create go-files with static content from directories. This ma
 
 ## Install
 ```bash
-> go install -v github.com/contiamo/gopack
+> go get -v github.com/contiamo/gopack
 ```
 
 ## Usage
