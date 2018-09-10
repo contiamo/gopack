@@ -17,13 +17,20 @@ var packageName = flag.String("package", "main", "name of the data package")
 var variableName = flag.String("variable", "pack", "name of the data variable")
 var out = flag.String("output", "/dev/stdout", "output file")
 var exclude = flag.String("exclude", "", "file prefixes to exclude from packing")
+var withHTTP = flag.Bool("with-http-handler", false, "include convenient http handler")
 
 const tmpl = `package {{.PackageName}}
+{{ if .WithHTTPHandler }}
+import "github.com/contiamo/gopack/staticserver"
+{{ end }}
 var {{.VariableName}} = map[string][]byte{
   {{ range $key, $value := .Pack.Entries }}"{{$key}}": {
     {{ range $value }}{{ . }},{{ end }}
   },
 {{end}}}
+{{ if .WithHTTPHandler }}
+var {{.VariableName}}Handler = staticserver.New({{.VariableName}})
+{{ end }}
 `
 
 type Pack struct {
@@ -57,16 +64,18 @@ func NewPack(dir string, excludeList []string) (*Pack, error) {
 	return pack, nil
 }
 
-func (pack *Pack) ToCode(packageName, variableName string, output io.Writer) error {
+func (pack *Pack) ToCode(packageName, variableName string, withHTTPHandler bool, output io.Writer) error {
 
 	t := template.Must(template.New("").Parse(tmpl))
 	data := struct {
-		PackageName  string
-		VariableName string
-		Pack         *Pack
+		PackageName     string
+		VariableName    string
+		WithHTTPHandler bool
+		Pack            *Pack
 	}{
 		packageName,
 		variableName,
+		withHTTPHandler,
 		pack,
 	}
 	if err := t.Execute(output, data); err != nil {
@@ -86,7 +95,7 @@ func main() {
 		log.Fatal(err)
 	}
 	outFile, err := os.Create(*out)
-	err = pack.ToCode(*packageName, *variableName, outFile)
+	err = pack.ToCode(*packageName, *variableName, *withHTTP, outFile)
 	if err != nil {
 		log.Fatal(err)
 	}

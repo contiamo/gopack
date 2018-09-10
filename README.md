@@ -24,13 +24,19 @@ Ultra easy tool to create go-files with static content from directories. This ma
   -package mypackage \
   -variable staticContent \
   -output output.go \
-  -exclude foo/bar/baz,.git
+  -exclude foo/bar/baz,.git \
+  -with-http-handler
 # inspect output
 > cat output.go
 package mypackage
+
+import "github.com/contiamo/gopack/staticserver"
+
 var staticContent = map[string][]byte{
   "foo/bar/content.txt": {
     101,120,97,109,112,108,101,32,99,111,110,116,101,110,116,10,
   },
 }
+
+var staticContentHandler = staticserver.New(staticContent)
 ```
