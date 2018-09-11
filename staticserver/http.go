@@ -1,6 +1,10 @@
 package staticserver
 
-import "net/http"
+import (
+	"mime"
+	"net/http"
+	"path/filepath"
+)
 
 // StaticContentServer is an http.Handler which serves static content
 type StaticContentServer struct {
@@ -14,9 +18,14 @@ func New(content map[string][]byte) *StaticContentServer {
 
 // ServeHTTP implements the http.Handler interface
 func (s *StaticContentServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	if len(path) > 0 {
-		if content, ok := s.content[path[1:]]; ok {
+	fileID := r.URL.Path
+	if len(fileID) > 0 {
+		fileID = fileID[1:] // strip leading slash
+		if content, ok := s.content[fileID]; ok {
+			mimeType := mime.TypeByExtension(filepath.Ext(fileID))
+			if mimeType != "" {
+				w.Header().Add(http.CanonicalHeaderKey("Content-Type"), mimeType)
+			}
 			w.Write(content)
 			return
 		}

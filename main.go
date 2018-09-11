@@ -12,19 +12,24 @@ import (
 	"strings"
 )
 
-var dir = flag.String("dir", ".", "dir to pack")
-var packageName = flag.String("package", "main", "name of the data package")
-var variableName = flag.String("variable", "pack", "name of the data variable")
-var out = flag.String("output", "/dev/stdout", "output file")
-var exclude = flag.String("exclude", "", "file prefixes to exclude from packing")
-var withHTTP = flag.Bool("with-http-handler", false, "include convenient http handler")
+var (
+	dir          = flag.String("dir", ".", "dir to pack")
+	packageName  = flag.String("package", "main", "name of the data package")
+	variableName = flag.String("variable", "pack", "name of the data variable")
+	out          = flag.String("output", "/dev/stdout", "output file")
+	exclude      = flag.String("exclude", "", "file prefixes to exclude from packing")
+	withHTTP     = flag.Bool("with-http-handler", false, "include convenient http handler")
 
-const tmpl = `package {{.PackageName}}
+	tmpl *template.Template
+)
+
+// this is the template used to render the resulting go source file
+const tmplStr = `package {{.PackageName}}
 {{ if .WithHTTPHandler }}
 import "github.com/contiamo/gopack/staticserver"
 {{ end }}
 var {{.VariableName}} = map[string][]byte{
-  {{ range $key, $value := .Pack.Entries }}"{{$key}}": {
+  {{ range $key, $value := .Pack }}"{{$key}}": {
     {{ range $value }}{{ . }},{{ end }}
   },
 {{end}}}
@@ -33,12 +38,17 @@ var {{.VariableName}}Handler = staticserver.New({{.VariableName}})
 {{ end }}
 `
 
-type Pack struct {
-	Entries map[string][]byte
+// we parse the template once at program startup
+func init() {
+	tmpl = template.Must(template.New("").Parse(tmplStr))
 }
 
-func NewPack(dir string, excludeList []string) (*Pack, error) {
-	pack := &Pack{make(map[string][]byte)}
+// Pack represents a set of files
+type Pack map[string][]byte
+
+// NewPack creates a new pack by iterating a directory
+func NewPack(dir string, excludeList []string) (Pack, error) {
+	pack := make(Pack)
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
@@ -54,7 +64,7 @@ func NewPack(dir string, excludeList []string) (*Pack, error) {
 					return nil
 				}
 			}
-			pack.Entries[path] = bs
+			pack[path] = bs
 		}
 		return nil
 	})
@@ -64,26 +74,27 @@ func NewPack(dir string, excludeList []string) (*Pack, error) {
 	return pack, nil
 }
 
-func (pack *Pack) ToCode(packageName, variableName string, withHTTPHandler bool, output io.Writer) error {
-
-	t := template.Must(template.New("").Parse(tmpl))
-	data := struct {
+// ToCode generates a go source file containing a map representing the files of the pack
+func (pack Pack) ToCode(packageName, variableName string, withHTTPHandler bool, output io.Writer) error {
+	type templateData struct {
 		PackageName     string
 		VariableName    string
 		WithHTTPHandler bool
-		Pack            *Pack
-	}{
+		Pack            Pack
+	}
+	data := &templateData{
 		packageName,
 		variableName,
 		withHTTPHandler,
 		pack,
 	}
-	if err := t.Execute(output, data); err != nil {
+	if err := tmpl.Execute(output, data); err != nil {
 		return err
 	}
 	return nil
 }
 
+// main() kicks of the programs logic
 func main() {
 	flag.Parse()
 	excludeList := strings.Split(*exclude, ",")

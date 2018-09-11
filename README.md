@@ -40,3 +40,28 @@ var staticContent = map[string][]byte{
 
 var staticContentHandler = staticserver.New(staticContent)
 ```
+
+## Example
+This will create a pack from the data directory, compile a little webserver using that pack, start it and call it to see all the results and mime types being returned.
+```bash
+> bash example/run-example.sh
+~/go/src/github.com/contiamo/gopack/data ~/go/src/github.com/contiamo/gopack
+~/go/src/github.com/contiamo/gopack
+~/go/src/github.com/contiamo/gopack/example ~/go/src/github.com/contiamo/gopack
+HTTP/1.1 200 OK
+Content-Type: text/plain; charset=utf-8
+Date: Tue, 11 Sep 2018 11:20:09 GMT
+Content-Length: 4
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Tue, 11 Sep 2018 11:20:09 GMT
+Content-Length: 3
+
+HTTP/1.1 200 OK
+Date: Tue, 11 Sep 2018 11:20:09 GMT
+Content-Length: 3
+Content-Type: text/plain; charset=utf-8
+
+~/go/src/github.com/contiamo/gopack
+```
